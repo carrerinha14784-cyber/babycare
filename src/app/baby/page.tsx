@@ -10,56 +10,67 @@ import { SleepModal } from '@/components/baby/SleepModal'
 import { FeedingModal } from '@/components/baby/FeedingModal'
 import { DiaperModal } from '@/components/baby/DiaperModal'
 import { HealthModal } from '@/components/baby/HealthModal'
+import type { SleepRecord, FeedingRecord, DiaperRecord } from '@/types'
+
 const tabs = [
   { id: 'feeding', label: 'Mamadas', icon: '🍼' },
   { id: 'sleep', label: 'Sono', icon: '😴' },
   { id: 'diaper', label: 'Fraldas', icon: '👶' },
   { id: 'health', label: 'Saúde', icon: '🩺' },
 ]
+
 export default function BabyPage() {
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('feeding')
-  const [babyId, setBabyId] = useState(null)
-  const [babyName, setBabyName] = useState('')
-  const [showModal, setShowModal] = useState(null)
-  const [feedings, setFeedings] = useState([])
-  const [sleeps, setSleeps] = useState([])
-  const [diapers, setDiapers] = useState([])
-  const [activeSleep, setActiveSleep] = useState(null)
+  const [babyId, setBabyId] = useState<string | null>(null)
+  const [babyName, setBabyName] = useState<string>('')
+  const [showModal, setShowModal] = useState<string | null>(null)
+  const [feedings, setFeedings] = useState<FeedingRecord[]>([])
+  const [sleeps, setSleeps] = useState<SleepRecord[]>([])
+  const [diapers, setDiapers] = useState<DiaperRecord[]>([])
+  const [activeSleep, setActiveSleep] = useState<SleepRecord | null>(null)
   const supabase = createSupabaseClient()
+
   const loadBaby = useCallback(async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
     const { data } = await supabase.from('babies').select('id, name').eq('user_id', user.id).eq('is_active', true).single()
     if (data) { setBabyId(data.id); setBabyName(data.name) }
   }, [])
+
   const loadFeedings = useCallback(async () => {
     if (!babyId) return
     const { data } = await supabase.from('feeding_records').select('*').eq('baby_id', babyId).order('fed_at', { ascending: false }).limit(20)
-    setFeedings(data || [])
+    setFeedings((data as FeedingRecord[]) || [])
   }, [babyId])
+
   const loadSleeps = useCallback(async () => {
     if (!babyId) return
     const { data } = await supabase.from('sleep_records').select('*').eq('baby_id', babyId).order('sleep_start', { ascending: false }).limit(20)
-    setSleeps(data || [])
-    setActiveSleep(data?.find(s => !s.sleep_end) || null)
+    setSleeps((data as SleepRecord[]) || [])
+    setActiveSleep((data as SleepRecord[])?.find(s => !s.sleep_end) || null)
   }, [babyId])
+
   const loadDiapers = useCallback(async () => {
     if (!babyId) return
     const { data } = await supabase.from('diaper_records').select('*').eq('baby_id', babyId).order('changed_at', { ascending: false }).limit(20)
-    setDiapers(data || [])
+    setDiapers((data as DiaperRecord[]) || [])
   }, [babyId])
+
   useEffect(() => { loadBaby() }, [loadBaby])
   useEffect(() => { if (babyId) { loadFeedings(); loadSleeps(); loadDiapers() } }, [babyId])
+
   const stopSleep = async () => {
     if (!activeSleep) return
     await supabase.from('sleep_records').update({ sleep_end: new Date().toISOString() }).eq('id', activeSleep.id)
     toast({ title: 'Sono finalizado! 😴' }); loadSleeps()
   }
+
   const onSaved = () => {
     setShowModal(null); loadFeedings(); loadSleeps(); loadDiapers()
     toast({ title: 'Registro salvo! ✅' })
   }
+
   return (
     <div className="flex flex-col min-h-screen">
       <div className="hero-gradient pt-14 pb-4 px-5">
@@ -147,7 +158,8 @@ export default function BabyPage() {
     </div>
   )
 }
-function Empty({ emoji, label }) {
+
+function Empty({ emoji, label }: { emoji: string; label: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <span className="text-5xl mb-3">{emoji}</span>
